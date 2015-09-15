@@ -2,19 +2,16 @@
 
 ## Table of Contents
 
-  1. [Terms](#terms)
-  
+  1. [Terms](#terms)  
   1. [Naming](#naming-classes-and-methods)
-  1. [Comments](#comments)
-  
+  1. [Comments](#comments)  
   1. [Application Structure](#application-structure)
+  1. [Design Patterns](#design-patterns)
   1. [Code Guidelines](#code-guidelines)
-  1. [One Solution](#one-solution)
-  
+  1. [One Solution](#one-solution)  
   1. [Principles](#principles)
   1. [Patterns](#patterns)
   1. [Snippets](#snippets)
-  1. [References](#references)
 
 ## Terms
 
@@ -86,6 +83,25 @@ NHI.Common/
             Site/
                 SiteDiseasePageModel.cs
 ```
+*Ref: http://stackoverflow.com/questions/1866794/naming-classes-how-to-avoid-calling-everything-a-whatevermanager?lq=1*
+
+### Booleans
+Try to prefix boolean variable-names with: Is, Has, Can 
+```
+    /* avoid */
+    bool IsMarriedOrNot;
+    bool ShouldImplement;
+    
+    /* recommended */
+    bool IsMarried;
+    bool HasChildren;
+```
+
+Functions that return boolean value should be named as a yes-no question.
+```
+    IsRetrievable();
+    ContainsSomething();
+```
 
 ## Comments
 Always try to leave helpful comments, use 3 x / + [Tab] to insert templated comment-structure
@@ -103,41 +119,117 @@ public Favorite Get(Expression<Func<Favorite, bool>> predicate)
 
 ## Application Structure
 
-### Sample 3 Layer Architecture with Entity Framework and ASP.NET MVC
+### Sample 3 Layer Structure with Entity Framework and ASP.NET MVC
 ```
 NHI.Data
     Context/
     Configurations/             
-    Migrations/                 // Schema changes
-    Initializers/               // Seed data
+    Migrations/                     // Schema changes
+    Initializers/                   // Seed data
     Repositories/
 NHI.Domain
-    Services/                   // Non-feature specific services
-    Feature1/
-    Feature2/
-    Enums.cs                    // Enums avaliable to the whole project namespace
-NHI.Domain.Model
+    Services/                       // Non-feature specific services
+        CustomerService.cs          // CRUD-service to CustomerModel 
+                                    // and domain-logic for CustomerContext
+        CustomerCommentService.cs   // CRUD-service to CustomerCommentModel
+    NHILogger/                      // Feature with custom name
+    MessageDispatcher/              // Another example feature with relevant custom name
+    Enums.cs                        // Enums avaliable to the whole project namespace
+NHI.Domain.Model/
+    CustomerContext/
+        CustomerModel.cs
+        CustomerCommentModel.cs
+        CustomerProfessionModel.cs
+    MessageContext/
+        MessageModel.cs
+        MessageDeliveryTypeModel.cs
+        MessageTemplateModel.cs
+        
 NHI.Client
-    Content/                    // Publicly avaliable assets: styles, images, fonts
-        NHI/                    // Custom assets specific for the project resides here
-        ...                     // Vendor assets will install here in different folders
+    Content/                        // Publicly avaliable assets: styles, images, fonts
+        NHI/                        // Custom assets specific for the project resides here
+        ...                         // Vendor assets will install here in different folders
     Controllers/
+        Api/
+            v1/
+                CustomerApiController.cs                    
         CustomerController.cs
-    Models/                     // Viewmodels
+    Models/                         // Viewmodels
         Customer/
             IndexViewModel.cs
     Views/                      
         Customer/
-            Index.cshtml        // List of customers
+            Index.cshtml            // List of customers
             Edit.cshtml     
-            Details.cshtml      // Create / edit customer
+            Details.cshtml          // Create / edit customer
 ```
 
+## Design Patterns
+
+### Simplified code-slice from previous sample 3 layer structure
+```csharp
+class UserController : Controller 
+{
+    private UserService _userService;
+
+    public UserController(UserService userService)
+    {
+        _userService = userService;
+    } 
+
+    public ActionResult MakeHimPay(int userId, int amount) 
+    {
+        _userService.MakeHimPay(userId, amount);
+        return RedirectToAction("ShowUserOverview");
+    }
+
+    public ActionResult ShowUserOverview() 
+    {
+        return View();
+    }
+}
+
+class UserService 
+{
+    private IUserRepository _userRepository;
+
+    public UserService(IUserRepository userRepository) 
+    {
+        _userRepository = userRepository;
+    }
+
+    public void MakeHimPay(userId, amount) 
+    {
+        var user = _userRepository.Get(p => p.userId);        
+        user.Debt -= amount;        
+        _userRepository.Update(user);
+    }
+}
+
+class UserRepository 
+{
+    private DbContext _dbContext;
+        
+    public UserRepository(DbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }    
+    
+    public UserModel Get(Expression<Func<User, bool>> predicate)
+    {
+        // Get appropriate user from database
+    }
+}
+
+class User 
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public int Debt { get; set; }
+}
 ```
-    Api/
-        v1/
-            CustomerApiController.cs                    
-```
+
+http://programmers.stackexchange.com/questions/218011/how-accurate-is-business-logic-should-be-in-a-service-not-in-a-model/218394#218394
 
 ## Code Guidelines
 We will follow the MSDN C# Coding Conventions here: https://msdn.microsoft.com/en-us/library/ff926074.aspx
@@ -172,37 +264,74 @@ public void MyClass(DbContext dbContext, IMessageDispatcher messageDispatcher)
 }
 ```
 
-### When to use result !!!TODO!!!
+### When to use variable name "result"
+Variable name "result" should imply a variable that will change during the method / class, an aggregate of multiple operations.
 ```csharp
-Aggregate functino() {
-    var result= "";
+public string GetFullname(UserModel user) 
+{
+    string result;
+        
+    if (!string.IsNullOrWhitespace(user.FirstName)) 
+    {
+        result += user.FirstName;
+    }
     
-    
-    if (something) {
-        result += "ues";
+    if (!string.IsNullOrWhitespace(user.LastName)) 
+    {
+        result += user.LastName;
     }
     
     return result;
 }
 ```
 
-### var result in action methods !!!TODO!!!
-Avoid using generic words like "result". "return View();" takes a parameter "object model", use this info when naming your result-variable.
+### Multiple return statements in functions
+Ideally we only want one exit point in a function, but there are scenarios that warrant multiple. Keep number of exit points to a minimum, preferably one. 
+```csharp
+public string GetFullname(UserModel user) 
+{
+    if (string.IsNullOrWhitespace(user.LastName)) 
+    {
+        return user.FirstName;
+    }
+    
+    return string.Format("{0} {1}", user.FirstName, user.LastName);
+}
+```
+
+### When not to use variable name "result"
+Avoid using generic words like "result" as much as possible. 
+
+"return View();" takes a parameter "object model", use this info when naming your variable.
 
 In this example "result" is avaliable as a (still not recommended) variable name for some pre-processing before passing all the data to the view.
 ```csharp
-public ActionResult Index()
+/* avoid */
+public ActionResult BreadCrumb(PageData currentPage)
 {
-    var model = new IndexViewModel();
+    var contentLoader = ServiceLocator.Current.GetInstance<IContentLoader>();
+    var sitePageService = new SitePageService(contentLoader);
+
+    var result = sitePageService.GetNavigationPath(currentPage);
     
-    var result = someProcessor.Transform()
-    
-    model.Title = "Foo";
-    model.Lols = 
-    
-    return View(model);
+    return PartialView("BreadCrumb", result);
 }
 ```
+
+Declare "result"-variable with a useful name, preferably early in the method with a default value.
+```csharp
+/* recommended */
+public ActionResult BreadCrumb(PageData currentPage)
+{
+    var breadCrumbPages = new List<SitePageBaseViewModel>;
+    
+    var contentLoader = ServiceLocator.Current.GetInstance<IContentLoader>();
+    var sitePageService = new SitePageService(contentLoader);
+
+    breadCrumbPages = sitePageService.GetNavigationPath(currentPage);
+    
+    return PartialView("BreadCrumb", breadCrumbPages);
+}```
 
 ### Object Initializer
 Avoid calling functions inside an object initializer. 
@@ -236,16 +365,40 @@ var model = new IndexViewModel
 }
 ```
 
-## One Solution
+## One Solution  !!!TODO!!!
 - DLL
 - Nuget
-- Branch
+- Branch / Copy code
 
-## Principles
+## The Big List of Smells (TBLS)  !!!TODO!!!
+- Too many comments
 
-## Patterns
+## SOLID Principles
+- Single responsibility principle
+    - a class should have only a single responsibility (i.e. only one potential change in the software's specification should be able to affect the specification of the class)
+- Open/closed principle
+    - “software entities … should be open for extension, but closed for modification.”
+- Liskov substitution principle
+    - “objects in a program should be replaceable with instances of their subtypes without altering the correctness of that program.” See also design by contract.
+- Interface segregation principle
+    - “many client-specific interfaces are better than one general-purpose interface.”[8]
+- Dependency inversion principle
+    - one should “Depend upon Abstractions. Do not depend upon concretions.”[8]
+
+## Patterns  !!!TODO!!!
 
 ## Snippets
 
-## References
-- http://stackoverflow.com/questions/1866794/naming-classes-how-to-avoid-calling-everything-a-whatevermanager?lq=1
+### NHIs collection of handsy snippets !!!TODO!!!
+
+### Creating custom snippets  !!!TODO!!!
+
+### Already Built in Snippets
+- ctor: Creates a constructor for the containing class.
+- try: Creates a try-catch block.
+- prop: Creates an auto-implemented property declaration.
+- for: Creates a for loop.
+
+Check out the reference for the full list of snippets included in Visual Studio.
+
+*Ref - Visual C# Code Snippets: https://msdn.microsoft.com/en-us/library/z41h7fat.aspx* 
