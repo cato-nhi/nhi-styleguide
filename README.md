@@ -237,14 +237,17 @@ We will follow the MSDN C# Coding Conventions here: https://msdn.microsoft.com/e
 Additions and modifications to the conventions will be added to this chapter.
 
 ### Constants
+Do not use SCREAMING_CONSTANTS
+
+*Why?:* Recommended convention is consistent with the .NET Framework and is easy to read.
 ```csharp
 public class MyClass
 {
     /* avoid */
-    public const ITEMS_PER_PAGE = 13;               // Do not use SCREAMING_CONSTANTS
+    public const ITEMS_PER_PAGE = 13;
     
     /* recommended */
-    public const ItemsPerPageConstant = 13;         // Why: This convention is consistent with the .NET Framework and is easy to read.
+    public const ItemsPerPageConstant = 13;
 }
 ```
 
@@ -252,8 +255,6 @@ public class MyClass
 
 ### Private instance variables
 ```csharp
-/* recommended */
-
 private readonly DbContext _dbContext;          // readonly since it is assigned in contructor only (with DI)
 private readonly IMessageDispatcher _messageDispatcher;
 
@@ -288,6 +289,7 @@ public string GetFullname(UserModel user)
 ### Multiple return statements in functions
 Ideally we only want one exit point in a function, but there are scenarios that warrant multiple. Keep number of exit points to a minimum, preferably one. 
 ```csharp
+/* avoid */
 public string GetFullname(UserModel user) 
 {
     if (string.IsNullOrWhitespace(user.LastName)) 
@@ -337,7 +339,6 @@ public ActionResult BreadCrumb(PageData currentPage)
 Avoid calling functions inside an object initializer. 
 ```csharp
 /* avoid */
-
 var model = new IndexViewModel
 {
     contents = someProcessor.Transform(myContents)
@@ -347,7 +348,6 @@ var model = new IndexViewModel
 This makes debugging much easier
 ```csharp
 /* recommended */
-
 var transformedContents = someProcessor.Transform(myContents);
 var model = new IndexViewModel
 {
