@@ -333,7 +333,8 @@ public ActionResult BreadCrumb(PageData currentPage)
     breadCrumbPages = sitePageService.GetNavigationPath(currentPage);
     
     return PartialView("BreadCrumb", breadCrumbPages);
-}```
+}
+```
 
 ### Object Initializer
 Avoid calling functions inside an object initializer. 
